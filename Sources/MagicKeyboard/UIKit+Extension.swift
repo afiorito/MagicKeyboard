@@ -50,15 +50,15 @@ extension UIView {
     /// - Parameters:
     ///     - type: The superview type.
     /// - Returns: A superview of the specified type or nil if there is no superview with the specified type.
-    func superviewOfType<T>(_ type: T.Type = T.self) -> T? {
+    func superviewOfType<T>(_ type: T.Type = T.self, below view: UIView? = nil) -> T? {
         var superview = self.superview
 
-        while let view = superview {
-            if let view = superview as? T {
-                return view
+        while let parent = superview, parent != view {
+            if let parent = superview as? T {
+                return parent
             }
 
-            superview = view.superview
+            superview = parent.superview
         }
 
         return nil

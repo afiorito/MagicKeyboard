@@ -16,7 +16,7 @@ public class MagicKeyboard {
     private func adjustPosition() {
         guard isEnabled,
             let inputView = inputView, let keyboardFrame = state.keyboardFrame, let window = keyWindow,
-            let containerView = inputView.containerViewController?.view,
+            let containerView = inputView.responderViewController?.view,
             let containerFrameInWindow = containerView.superview?.convert(containerView.frame, to: window),
             let inputFrameInWindow = inputView.superview?.convert(inputView.frame, to: window)
         else { return }
@@ -35,22 +35,16 @@ public class MagicKeyboard {
 
         if fitsInVisibleRect {
             move = keyboardFrame.minY - inputFrameInWindow.maxY
+        } else if let textInput = inputView as? UITextInput, let textPosition = textInput.selectedTextRange?.start {
+            let caretRect = textInput.caretRect(for: textPosition)
+            let contentOffset = (inputView as? UIScrollView)?.contentOffset ?? .zero
+            let caretHeight = caretRect.maxY - contentOffset.y
+
+            move = caretHeight > visibleRect.height ? keyboardFrame.minY - (inputFrameInWindow.minY + caretHeight) : 0.0
         }
 
-        move = min(move, 0.0)
-
-        if let superScrollView = inputView.superviewOfType(UIScrollView.self),
+        if let superScrollView = inputView.superviewOfType(UIScrollView.self, below: containerView),
             let scrollViewFrameInWindow = superScrollView.superview?.convert(superScrollView.frame, to: window) {
-            if let textInput = inputView as? UITextInput, let textPosition = textInput.selectedTextRange?.start {
-                let caretRect = textInput.caretRect(for: textPosition)
-                let contentOffset = (inputView as? UIScrollView)?.contentOffset ?? .zero
-                let caretHeight = caretRect.maxY - contentOffset.y
-
-                if caretHeight > visibleRect.height {
-                    move = keyboardFrame.minY - (inputFrameInWindow.minY + caretHeight)
-                }
-            }
-
             state.start.scrollViewContentInsetAdjustmentBehavior ??= superScrollView.contentInsetAdjustmentBehavior
             state.start.scrollViewContentInset ??= superScrollView.contentInset
             state.start.scrollViewContentOffset ??= superScrollView.contentOffset
@@ -94,13 +88,13 @@ public class MagicKeyboard {
     private func resetPosition() {
         guard isEnabled,
             let inputView = inputView,
-            let containerViewController = inputView.containerViewController
+            let containerViewController = inputView.responderViewController
         else { return }
 
         containerViewController.additionalSafeAreaInsets = .zero
 
         animateAlongsideKeyboard {
-            if let superScrollView = inputView.superviewOfType(UIScrollView.self) {
+            if let superScrollView = inputView.superviewOfType(UIScrollView.self, below: containerViewController.view) {
                 superScrollView.contentInsetAdjustmentBehavior =?? self.state.start.scrollViewContentInsetAdjustmentBehavior
                 superScrollView.contentOffset =?? self.state.start.scrollViewContentOffset
                 superScrollView.contentInset =?? self.state.start.scrollViewContentInset

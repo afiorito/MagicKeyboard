@@ -6,19 +6,22 @@ let package = Package(
     name: "MagicKeyboard",
     platforms: [
         .iOS(.v13),
-        .macOS(.v10_15)
+        .macOS(.v10_15),
     ],
     products: [
         .library(
             name: "MagicKeyboard",
-            targets: ["MagicKeyboard"])
+            targets: ["MagicKeyboard"]
+        ),
     ],
     targets: [
         .target(
             name: "MagicKeyboard",
-            dependencies: []),
+            dependencies: []
+        ),
         .testTarget(
             name: "MagicKeyboardTests",
-            dependencies: ["MagicKeyboard"])
+            dependencies: ["MagicKeyboard"]
+        ),
     ]
 )

@@ -25,7 +25,8 @@ public class MagicKeyboard {
 
         // The visible rect is the area between the top of the keyboard & the top of the containing view controller.
         let topInset: CGFloat = max(containerFrameInWindow.minY, containerView.safeAreaInsets.top)
-        let visibleRect = CGRect(x: 0, y: topInset, width: window.frame.width, height: window.frame.height - keyboardFrame.height - topInset)
+        let height = window.frame.height - keyboardFrame.height - topInset
+        let visibleRect = CGRect(x: 0, y: topInset, width: window.frame.width, height: height)
         let fitsInVisibleRect = inputFrameInWindow.height <= visibleRect.height
 
         // Input is completely visible. No need to adjust.
@@ -50,7 +51,10 @@ public class MagicKeyboard {
             state.start.scrollViewContentOffset ??= superScrollView.contentOffset
             state.start.scrollViewVerticalScrollIndicatorInset ??= superScrollView.verticalScrollIndicatorInsets
 
-            let newContentOffset = CGPoint(x: superScrollView.contentOffset.x, y: superScrollView.contentOffset.y - move)
+            let newContentOffset = CGPoint(
+                x: superScrollView.contentOffset.x,
+                y: superScrollView.contentOffset.y - move
+            )
 
             animateAlongsideKeyboard {
                 self.updateBottomInset(scrollViewFrameInWindow.maxY - keyboardFrame.minY, for: superScrollView)
@@ -82,7 +86,8 @@ public class MagicKeyboard {
         }
     }
 
-    /// Resets the position of an input (UITextField/UITextView) so that it returns to the position it was before the keyboard appeared.
+    /// Resets the position of an input (UITextField/UITextView) 
+    /// so that it returns to the position it was before the keyboard appeared.
     ///
     /// Reverses the adjustments made by calling `adjustPosition`.
     private func resetPosition() {
@@ -95,10 +100,12 @@ public class MagicKeyboard {
 
         animateAlongsideKeyboard {
             if let superScrollView = inputView.superviewOfType(UIScrollView.self, below: containerViewController.view) {
-                superScrollView.contentInsetAdjustmentBehavior =?? self.state.start.scrollViewContentInsetAdjustmentBehavior
+                superScrollView.contentInsetAdjustmentBehavior =?? self.state.start
+                    .scrollViewContentInsetAdjustmentBehavior
                 superScrollView.contentOffset =?? self.state.start.scrollViewContentOffset
                 superScrollView.contentInset =?? self.state.start.scrollViewContentInset
-                superScrollView.verticalScrollIndicatorInsets =?? self.state.start.scrollViewVerticalScrollIndicatorInset
+                superScrollView.verticalScrollIndicatorInsets =?? self.state.start
+                    .scrollViewVerticalScrollIndicatorInset
             } else {
                 containerViewController.view.frame.origin =?? self.state.start.containerOrigin
             }
@@ -123,8 +130,8 @@ public class MagicKeyboard {
     /// happens before `keyboardWillShow`. However for UITextViews, this event happens after
     /// `keyboardWillShow`.
     private func inputDidBeginEditing(_ event: InputEditingEvent) {
-        self.inputView = event.inputView
-        self.inputView?.window?.addGestureRecognizer(resignFirstResponderGesture)
+        inputView = event.inputView
+        inputView?.window?.addGestureRecognizer(resignFirstResponderGesture)
 
         adjustPositionIfNeeded()
     }
@@ -231,7 +238,10 @@ public class MagicKeyboard {
         let safeAreaInsets = scrollView.safeAreaInsets
 
         scrollView.contentInset.bottom = max(scrollView.contentInset.bottom, inset)
-        scrollView.verticalScrollIndicatorInsets.bottom = max(scrollView.verticalScrollIndicatorInsets.bottom, inset - safeAreaInsets.bottom)
+        scrollView.verticalScrollIndicatorInsets.bottom = max(
+            scrollView.verticalScrollIndicatorInsets.bottom,
+            inset - safeAreaInsets.bottom
+        )
         scrollView.contentInset.top = safeAreaInsets.top
         scrollView.contentInsetAdjustmentBehavior = .never
     }
@@ -239,10 +249,10 @@ public class MagicKeyboard {
     private func adjustSafeAreaInsets(for containerView: UIView) {
         // A hack for properly setting the safe area insets when a view controller is moved.
         // Changing the frame of a view controller affects the safe area insets in weird ways.
-        if state.start.containerSafeAreaInsets != .zero && containerView.safeAreaInsets == .zero {
+        if state.start.containerSafeAreaInsets != .zero, containerView.safeAreaInsets == .zero {
             inputView?.containerViewController?.additionalSafeAreaInsets = state.start.containerSafeAreaInsets
         } else {
-            self.state.start.containerSafeAreaInsets = containerView.safeAreaInsets
+            state.start.containerSafeAreaInsets = containerView.safeAreaInsets
         }
     }
 
@@ -259,11 +269,11 @@ public class MagicKeyboard {
 
     private var disabledContainerClasses: Set<ObjectIdentifier> = [
         UITableViewController.objectIdentifier,
-        UIAlertController.objectIdentifier
+        UIAlertController.objectIdentifier,
     ]
 
     private var keyWindow: UIWindow? {
-        return inputView?.window ?? UIApplication.shared.windows.filter {$0.isKeyWindow}.first
+        inputView?.window ?? UIApplication.shared.windows.filter { $0.isKeyWindow }.first
     }
 
     // MARK: - Resign Gesture Recognizer
@@ -282,7 +292,7 @@ public class MagicKeyboard {
 
     @discardableResult
     private func resignFirstResponder() -> Bool {
-        return inputView?.resignFirstResponder() ?? false
+        inputView?.resignFirstResponder() ?? false
     }
 }
 

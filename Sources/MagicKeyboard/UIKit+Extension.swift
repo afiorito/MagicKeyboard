@@ -3,12 +3,12 @@ import UIKit
 extension UIViewController {
     /// Returns a unique identifier for a UIViewController class or metatype.
     var objectIdentifier: ObjectIdentifier {
-        return ObjectIdentifier(type(of: self))
+        ObjectIdentifier(type(of: self))
     }
 
     /// Returns a unique identifier for a UIViewController class instance or metatype
     static var objectIdentifier: ObjectIdentifier {
-        return ObjectIdentifier(type(of: Self.self))
+        ObjectIdentifier(type(of: Self.self))
     }
 }
 
@@ -33,7 +33,7 @@ extension UIView {
         let exemptControllers = Set([
             UINavigationController.objectIdentifier,
             UITabBarController.objectIdentifier,
-            UISplitViewController.objectIdentifier
+            UISplitViewController.objectIdentifier,
         ])
 
         var container: UIViewController? = responderViewController

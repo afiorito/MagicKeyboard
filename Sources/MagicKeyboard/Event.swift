@@ -19,7 +19,8 @@ struct KeyboardEvent {
     static func map(_ notification: Notification) -> Self {
         KeyboardEvent(
             animationCurve: extractAnimationOptions(from: notification),
-            animationDuration: notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval,
+            animationDuration: notification
+                .userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? TimeInterval,
             endFrame: notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect,
             startFrame: notification.userInfo?[UIResponder.keyboardFrameBeginUserInfoKey] as? CGRect,
             isLocal: notification.userInfo?[UIResponder.keyboardIsLocalUserInfoKey] as? Bool

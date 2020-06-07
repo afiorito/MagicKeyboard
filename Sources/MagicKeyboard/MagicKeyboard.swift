@@ -3,8 +3,32 @@ import UIKit
 
 /// An object that seamlessly manages the appearance/disappearance of the iOS keyboard.
 /// Automatically positions UITextField/UITextViews so they are visible when the keyboard appears.
-public class MagicKeyboard {
-    public init() {
+public class MagicKeyboard: NSObject {
+    /// Resign behaviors when tapping outside the responding text input.
+    public enum ResignBehaviour {
+        /// Always resign when tapping outside the responding text input.
+        case always
+
+        /// Resign when the view tapped outside the responding text input is not a subclass of `UIControl`.
+        case ignoreControls
+
+        /// Never resign when tapping outside the responding text input.
+        case never
+    }
+
+    /// A Boolean that determines the resign behaviour when tapping outside the responding text input.
+    public var resignsFirstResponderOnTapOutside: ResignBehaviour = .always {
+        didSet {
+            if resignsFirstResponderOnTapOutside == .never {
+                resignFirstResponderGesture.isEnabled = false
+            } else {
+                resignFirstResponderGesture.isEnabled = true
+            }
+        }
+    }
+
+    override public init() {
+        super.init()
         registerNotifications()
     }
 
@@ -86,7 +110,7 @@ public class MagicKeyboard {
         }
     }
 
-    /// Resets the position of an input (UITextField/UITextView) 
+    /// Resets the position of an input (UITextField/UITextView)
     /// so that it returns to the position it was before the keyboard appeared.
     ///
     /// Reverses the adjustments made by calling `adjustPosition`.
@@ -281,6 +305,7 @@ public class MagicKeyboard {
     private lazy var resignFirstResponderGesture: UITapGestureRecognizer = {
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleResignFirstResponder))
         tapGesture.cancelsTouchesInView = false
+        tapGesture.delegate = self
         return tapGesture
     }()
 
@@ -293,6 +318,17 @@ public class MagicKeyboard {
     @discardableResult
     private func resignFirstResponder() -> Bool {
         inputView?.resignFirstResponder() ?? false
+    }
+}
+
+// MARK: - UIGestureRecognizer Delegate
+
+extension MagicKeyboard: UIGestureRecognizerDelegate {
+    public func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        if resignsFirstResponderOnTapOutside == .ignoreControls, touch.view is UIControl {
+            return false
+        }
+        return true
     }
 }
 

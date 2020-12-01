@@ -12,3 +12,6 @@ line_length:
 
 function_body_length:
   warning: 50
+
+excluded:
+  - Tests/MagicKeyboardTests/XCTestManifests.swift

@@ -4,7 +4,7 @@ MagicKeyboard is a library for seamlessly managing the position of text inputs d
 
 ## Installation
 
-Add Injector to your project using Swift Package Manager. In your Xcode project, select `File` > `Swift Packages` > `Add Package Dependency` and enter the repository URL.
+Add MagicKeyboard to your project using Swift Package Manager. In your Xcode project, select `File` > `Swift Packages` > `Add Package Dependency` and enter the repository URL.
 
 ## Basic Usage
 
@@ -21,4 +21,5 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 That is all that's needed! MagicKeyboard will handle positioning input views inside a regular `UIView` or `UIScrollView` when the keyboard appears.
 
 ## License
+
 MagicKeyboard is available under the MIT license. See the [LICENSE](LICENSE) file for more info.

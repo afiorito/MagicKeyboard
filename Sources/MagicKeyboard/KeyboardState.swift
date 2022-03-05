@@ -17,6 +17,8 @@ struct KeyboardState {
         var inputContentInset: UIEdgeInsets?
         var inputVerticalScrollIndicatorInset: UIEdgeInsets?
 
+        var navigationBarAppearance: UINavigationBarAppearance?
+
         var scrollViewContentInsetAdjustmentBehavior: UIScrollView.ContentInsetAdjustmentBehavior?
         var scrollViewContentInset: UIEdgeInsets?
         var scrollViewVerticalScrollIndicatorInset: UIEdgeInsets?

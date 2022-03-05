@@ -27,6 +27,9 @@ public class MagicKeyboard: NSObject {
         }
     }
 
+    /// A collection of view controllers to ignore when making adjustments.
+    public var ignoredContainerClasses = [UIViewController.Type]()
+
     override public init() {
         super.init()
         registerNotifications()
@@ -40,36 +43,33 @@ public class MagicKeyboard: NSObject {
     private func adjustPosition() {
         guard isEnabled,
             let inputView = inputView, let keyboardFrame = state.keyboardFrame, let window = keyWindow,
-            let containerView = inputView.responderViewController?.view,
-            let containerFrameInWindow = containerView.superview?.convert(containerView.frame, to: window),
+            let containerViewController = inputView.containerViewController(excluding: ignoredContainerClasses),
+            let containerView = containerViewController.view,
+            let containerFrameInWindow = containerView.superview?.convert(state.start.containerOrigin ?? containerView.frame.origin, to: window),
             let inputFrameInWindow = inputView.superview?.convert(inputView.frame, to: window)
         else { return }
 
-        adjustSafeAreaInsets(for: containerView)
-
         // The visible rect is the area between the top of the keyboard & the top of the containing view controller.
-        let topInset: CGFloat = max(containerFrameInWindow.minY, containerView.safeAreaInsets.top)
+        let topInset: CGFloat = max(containerFrameInWindow.y, containerView.safeAreaInsets.top)
         let height = window.frame.height - keyboardFrame.height - topInset
         let visibleRect = CGRect(x: 0, y: topInset, width: window.frame.width, height: height)
         let fitsInVisibleRect = inputFrameInWindow.height <= visibleRect.height
 
         // Input is completely visible. No need to adjust.
-        guard inputFrameInWindow.maxY >= visibleRect.maxY else { return }
+        guard (inputFrameInWindow.maxY > visibleRect.maxY || inputFrameInWindow.minY < visibleRect.minY) else { return }
 
-        var move: CGFloat = visibleRect.minY - inputFrameInWindow.minY
-
-        if fitsInVisibleRect {
-            move = keyboardFrame.minY - inputFrameInWindow.maxY
-        } else if let textInput = inputView as? UITextInput, let textPosition = textInput.selectedTextRange?.start {
-            let caretRect = textInput.caretRect(for: textPosition)
-            let contentOffset = (inputView as? UIScrollView)?.contentOffset ?? .zero
-            let caretHeight = caretRect.maxY - contentOffset.y
-
-            move = caretHeight > visibleRect.height ? keyboardFrame.minY - (inputFrameInWindow.minY + caretHeight) : 0.0
-        }
+        // If the input fully fits above the keyboard align the bottom of the input to the keyboard.
+        // Otherwise, align the input to the top of the visible rect.
+        var move = fitsInVisibleRect ? keyboardFrame.minY - inputFrameInWindow.maxY : visibleRect.midY - inputFrameInWindow.minY
 
         if let superScrollView = inputView.superviewOfType(UIScrollView.self, below: containerView),
             let scrollViewFrameInWindow = superScrollView.superview?.convert(superScrollView.frame, to: window) {
+
+            if !fitsInVisibleRect, let textInput = inputView as? UITextInput, let textPosition = textInput.selectedTextRange?.start {
+                let caretRect = inputView.convert(textInput.caretRect(for: textPosition), to: window)
+                move = caretRect.maxY > visibleRect.height ? keyboardFrame.minY - caretRect.maxY : .zero
+            }
+
             state.start.scrollViewContentInsetAdjustmentBehavior ??= superScrollView.contentInsetAdjustmentBehavior
             state.start.scrollViewContentInset ??= superScrollView.contentInset
             state.start.scrollViewContentOffset ??= superScrollView.contentOffset
@@ -77,25 +77,36 @@ public class MagicKeyboard: NSObject {
 
             let newContentOffset = CGPoint(
                 x: superScrollView.contentOffset.x,
-                y: superScrollView.contentOffset.y - move
+                y: max(.zero, superScrollView.contentOffset.y - move)
             )
 
             animateAlongsideKeyboard {
                 self.updateBottomInset(scrollViewFrameInWindow.maxY - keyboardFrame.minY, for: superScrollView)
                 superScrollView.setContentOffset(newContentOffset, animated: true)
             }
-        } else {
-            state.start.containerOrigin ??= containerView.frame.origin
-            animateAlongsideKeyboard { containerView.frame.origin.y += move }
-        }
 
-        if let inputScrollView = inputView as? UIScrollView {
-            state.start.inputContentInsetAdjustmentBehavior ??= inputScrollView.contentInsetAdjustmentBehavior
-            state.start.inputContentInset ??= inputScrollView.contentInset
-            state.start.inputVerticalScrollIndicatorInset ??= inputScrollView.verticalScrollIndicatorInsets
+        } else {
+            let navigationController = containerViewController.navigationController
+            state.start.navigationBarAppearance = navigationController?.navigationBar.scrollEdgeAppearance
+
+            if let appearance = navigationController?.navigationBar.standardAppearance {
+                navigationController?.navigationBar.scrollEdgeAppearance = appearance
+            }
+
+            state.start.containerOrigin ??= containerView.frame.origin
 
             animateAlongsideKeyboard {
-                self.updateBottomInset(inputFrameInWindow.maxY + move - keyboardFrame.minY, for: inputScrollView)
+                containerView.frame.origin.y = min(.zero, containerView.frame.origin.y + move)
+            }
+
+            if !fitsInVisibleRect, let inputScrollView = inputView as? UIScrollView {
+                self.state.start.inputContentInsetAdjustmentBehavior ??= inputScrollView.contentInsetAdjustmentBehavior
+                self.state.start.inputContentInset ??= inputScrollView.contentInset
+                self.state.start.inputVerticalScrollIndicatorInset ??= inputScrollView.verticalScrollIndicatorInsets
+
+                self.animateAlongsideKeyboard {
+                    self.updateBottomInset(inputFrameInWindow.maxY + min(.zero, move) - keyboardFrame.minY, for: inputScrollView)
+                }
             }
         }
     }
@@ -117,7 +128,7 @@ public class MagicKeyboard: NSObject {
     private func resetPosition() {
         guard isEnabled,
             let inputView = inputView,
-            let containerViewController = inputView.responderViewController
+            let containerViewController = inputView.containerViewController(excluding: ignoredContainerClasses)
         else { return }
 
         containerViewController.additionalSafeAreaInsets = .zero
@@ -131,6 +142,10 @@ public class MagicKeyboard: NSObject {
                 superScrollView.verticalScrollIndicatorInsets =?? self.state.start
                     .scrollViewVerticalScrollIndicatorInset
             } else {
+                if let appearance = self.state.start.navigationBarAppearance {
+                    containerViewController.navigationController?.navigationBar.scrollEdgeAppearance = appearance
+                }
+
                 containerViewController.view.frame.origin =?? self.state.start.containerOrigin
             }
 
@@ -166,7 +181,6 @@ public class MagicKeyboard: NSObject {
     ///     - event: The input editing event to be handled.
     private func inputDidEndEditing(_ event: InputEditingEvent) {
         inputView?.window?.removeGestureRecognizer(resignFirstResponderGesture)
-        inputView = nil
     }
 
     // MARK: - Keyboard Events
@@ -203,6 +217,7 @@ public class MagicKeyboard: NSObject {
     /// This event signals that the keyboard is disappearing, so reset the adjustments.
     private func keyboardWillHide(_ event: KeyboardEvent) {
         resetPosition()
+        inputView?.responderViewController?.view.setNeedsLayout()
     }
 
     /// Handle a keyboard did hide event.
@@ -252,10 +267,10 @@ public class MagicKeyboard: NSObject {
             .map(OrientationChangeEvent.map).sink(receiveValue: orientationDidChange).store(in: &notifications)
     }
 
-    private func animateAlongsideKeyboard(animations: @escaping () -> Void) {
+    private func animateAlongsideKeyboard(animations: @escaping () -> Void, completion: ((Bool) -> Void)? = nil) {
         UIView.animate(withDuration: state.animationDuration, delay: 0,
                        options: state.animationCurve.union(.beginFromCurrentState),
-                       animations: animations)
+                       animations: animations, completion: completion)
     }
 
     private func updateBottomInset(_ inset: CGFloat, for scrollView: UIScrollView) {
@@ -270,16 +285,6 @@ public class MagicKeyboard: NSObject {
         scrollView.contentInsetAdjustmentBehavior = .never
     }
 
-    private func adjustSafeAreaInsets(for containerView: UIView) {
-        // A hack for properly setting the safe area insets when a view controller is moved.
-        // Changing the frame of a view controller affects the safe area insets in weird ways.
-        if state.start.containerSafeAreaInsets != .zero, containerView.safeAreaInsets == .zero {
-            inputView?.containerViewController?.additionalSafeAreaInsets = state.start.containerSafeAreaInsets
-        } else {
-            state.start.containerSafeAreaInsets = containerView.safeAreaInsets
-        }
-    }
-
     // MARK: - Properties
 
     private weak var inputView: UIView?
@@ -288,12 +293,12 @@ public class MagicKeyboard: NSObject {
 
     private var isEnabled: Bool {
         guard let inputView = inputView else { return false }
-        return !disabledContainerClasses.contains(ObjectIdentifier(type(of: inputView.containerViewController)))
+        return !disabledContainerClasses.contains(where: { inputView.responderViewController?.isKind(of: $0) == true })
     }
 
-    private var disabledContainerClasses: Set<ObjectIdentifier> = [
-        UITableViewController.objectIdentifier,
-        UIAlertController.objectIdentifier,
+    private var disabledContainerClasses: [UIViewController.Type] = [
+        UITableViewController.self,
+        UIAlertController.self,
     ]
 
     private var keyWindow: UIWindow? {

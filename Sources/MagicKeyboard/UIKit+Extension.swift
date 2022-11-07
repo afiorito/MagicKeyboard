@@ -45,7 +45,7 @@ extension UIView {
     ///     - type: The superview type.
     /// - Returns: A superview of the specified type or nil if there is no superview with the specified type.
     func superviewOfType<T>(_ type: T.Type = T.self, below view: UIView? = nil) -> T? {
-        var superview = self.superview
+        var superview = superview
 
         var topSuperView: T?
 

@@ -42,11 +42,14 @@ public class MagicKeyboard: NSObject {
     /// Otherwise, the frame of the containing view controller is adjusted.
     private func adjustPosition() {
         guard isEnabled,
-            let inputView = inputView, let keyboardFrame = state.keyboardFrame, let window = keyWindow,
-            let containerViewController = inputView.containerViewController(excluding: ignoredContainerClasses),
-            let containerView = containerViewController.view,
-            let containerFrameInWindow = containerView.superview?.convert(state.start.containerOrigin ?? containerView.frame.origin, to: window),
-            let inputFrameInWindow = inputView.superview?.convert(inputView.frame, to: window)
+              let inputView = inputView, let keyboardFrame = state.keyboardFrame, let window = keyWindow,
+              let containerViewController = inputView.containerViewController(excluding: ignoredContainerClasses),
+              let containerView = containerViewController.view,
+              let containerFrameInWindow = containerView.superview?.convert(
+                  state.start.containerOrigin ?? containerView.frame.origin,
+                  to: window
+              ),
+              let inputFrameInWindow = inputView.superview?.convert(inputView.frame, to: window)
         else { return }
 
         // The visible rect is the area between the top of the keyboard & the top of the containing view controller.
@@ -56,16 +59,19 @@ public class MagicKeyboard: NSObject {
         let fitsInVisibleRect = inputFrameInWindow.height <= visibleRect.height
 
         // Input is completely visible. No need to adjust.
-        guard (inputFrameInWindow.maxY > visibleRect.maxY || inputFrameInWindow.minY < visibleRect.minY) else { return }
+        guard inputFrameInWindow.maxY > visibleRect.maxY || inputFrameInWindow.minY < visibleRect.minY else { return }
 
         // If the input fully fits above the keyboard align the bottom of the input to the keyboard.
         // Otherwise, align the input to the top of the visible rect.
-        var move = fitsInVisibleRect ? keyboardFrame.minY - inputFrameInWindow.maxY : visibleRect.midY - inputFrameInWindow.minY
+        var move = fitsInVisibleRect ? keyboardFrame.minY - inputFrameInWindow.maxY : visibleRect
+            .midY - inputFrameInWindow.minY
 
         if let superScrollView = inputView.superviewOfType(UIScrollView.self, below: containerView),
-            let scrollViewFrameInWindow = superScrollView.superview?.convert(superScrollView.frame, to: window) {
-
-            if !fitsInVisibleRect, let textInput = inputView as? UITextInput, let textPosition = textInput.selectedTextRange?.start {
+           let scrollViewFrameInWindow = superScrollView.superview?.convert(superScrollView.frame, to: window)
+        {
+            if !fitsInVisibleRect, let textInput = inputView as? UITextInput,
+               let textPosition = textInput.selectedTextRange?.start
+            {
                 let caretRect = inputView.convert(textInput.caretRect(for: textPosition), to: window)
                 move = caretRect.maxY > visibleRect.height ? keyboardFrame.minY - caretRect.maxY : .zero
             }
@@ -100,12 +106,15 @@ public class MagicKeyboard: NSObject {
             }
 
             if !fitsInVisibleRect, let inputScrollView = inputView as? UIScrollView {
-                self.state.start.inputContentInsetAdjustmentBehavior ??= inputScrollView.contentInsetAdjustmentBehavior
-                self.state.start.inputContentInset ??= inputScrollView.contentInset
-                self.state.start.inputVerticalScrollIndicatorInset ??= inputScrollView.verticalScrollIndicatorInsets
+                state.start.inputContentInsetAdjustmentBehavior ??= inputScrollView.contentInsetAdjustmentBehavior
+                state.start.inputContentInset ??= inputScrollView.contentInset
+                state.start.inputVerticalScrollIndicatorInset ??= inputScrollView.verticalScrollIndicatorInsets
 
-                self.animateAlongsideKeyboard {
-                    self.updateBottomInset(inputFrameInWindow.maxY + min(.zero, move) - keyboardFrame.minY, for: inputScrollView)
+                animateAlongsideKeyboard {
+                    self.updateBottomInset(
+                        inputFrameInWindow.maxY + min(.zero, move) - keyboardFrame.minY,
+                        for: inputScrollView
+                    )
                 }
             }
         }
@@ -125,16 +134,19 @@ public class MagicKeyboard: NSObject {
     /// so that it returns to the position it was before the keyboard appeared.
     ///
     /// Reverses the adjustments made by calling `adjustPosition`.
-    private func resetPosition() {
+    private func resetPosition(ignoringSuperView: Bool = false) {
         guard isEnabled,
-            let inputView = inputView,
-            let containerViewController = inputView.containerViewController(excluding: ignoredContainerClasses)
+              let inputView = inputView,
+              let containerViewController = inputView.containerViewController(excluding: ignoredContainerClasses)
         else { return }
 
         containerViewController.additionalSafeAreaInsets = .zero
 
         animateAlongsideKeyboard {
-            if let superScrollView = inputView.superviewOfType(UIScrollView.self, below: containerViewController.view) {
+            if !ignoringSuperView, let superScrollView = inputView.superviewOfType(
+                UIScrollView.self,
+                below: containerViewController.view
+            ) {
                 superScrollView.contentInsetAdjustmentBehavior =?? self.state.start
                     .scrollViewContentInsetAdjustmentBehavior
                 superScrollView.contentOffset =?? self.state.start.scrollViewContentOffset
@@ -169,6 +181,8 @@ public class MagicKeyboard: NSObject {
     /// happens before `keyboardWillShow`. However for UITextViews, this event happens after
     /// `keyboardWillShow`.
     private func inputDidBeginEditing(_ event: InputEditingEvent) {
+        resetPosition(ignoringSuperView: true)
+
         inputView = event.inputView
         inputView?.window?.addGestureRecognizer(resignFirstResponderGesture)
 
@@ -197,6 +211,8 @@ public class MagicKeyboard: NSObject {
         state.keyboardFrame = event.endFrame
         state.animationDuration = event.animationDuration ?? state.animationDuration
         state.animationCurve = event.animationCurve ?? state.animationCurve
+
+        adjustPositionIfNeeded()
     }
 
     /// Handle a keyboard did show event.
@@ -302,7 +318,7 @@ public class MagicKeyboard: NSObject {
     ]
 
     private var keyWindow: UIWindow? {
-        inputView?.window ?? UIApplication.shared.windows.filter { $0.isKeyWindow }.first
+        inputView?.window ?? UIApplication.shared.windows.filter(\.isKeyWindow).first
     }
 
     // MARK: - Resign Gesture Recognizer
